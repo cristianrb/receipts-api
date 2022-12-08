@@ -69,3 +69,34 @@ func TestReceipts_GetReceiptById(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
+
+func TestReceipts_GetAllReceipts(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "/receipts", nil)
+	rr := httptest.NewRecorder()
+
+	ctrl := gomock.NewController(t)
+	storage := mockstorage.NewMockStorage(ctrl)
+	expectedReceipts := types.Receipts{
+		{
+			Id: 1,
+			Items: []*types.Item{
+				{Id: 1, ProductName: "Product name 1"},
+				{Id: 2, ProductName: "Product name 2"},
+			},
+		},
+		{
+			Id: 2,
+			Items: []*types.Item{
+				{Id: 3, ProductName: "Product name 3"},
+			},
+		},
+	}
+	storage.EXPECT().GetAllReceipts().Return(expectedReceipts, nil)
+
+	rh := New(":5000", storage)
+	handler := http.HandlerFunc(rh.GetAllReceipts)
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}

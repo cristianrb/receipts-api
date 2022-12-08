@@ -26,6 +26,7 @@ func (s *Server) Run() {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/receipts", s.AddReceipt).Methods(http.MethodPost)
 	mux.HandleFunc("/receipts/{id}", s.GetReceiptById).Methods(http.MethodGet)
+	mux.HandleFunc("/receipts", s.GetAllReceipts).Methods(http.MethodGet)
 
 	http.ListenAndServe(s.listenAddr, mux)
 }
@@ -56,6 +57,16 @@ func (s *Server) GetReceiptById(w http.ResponseWriter, req *http.Request) {
 	}
 
 	receipt, err := s.mysqlStorage.GetReceiptById(receiptId)
+	if err != nil {
+		utils.ErrorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, receipt)
+}
+
+func (s *Server) GetAllReceipts(w http.ResponseWriter, req *http.Request) {
+	receipt, err := s.mysqlStorage.GetAllReceipts()
 	if err != nil {
 		utils.ErrorJSON(w, err, http.StatusInternalServerError)
 		return

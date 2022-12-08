@@ -49,6 +49,21 @@ func (mr *MockStorageMockRecorder) CreateReceipt(receipt interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateReceipt", reflect.TypeOf((*MockStorage)(nil).CreateReceipt), receipt)
 }
 
+// GetAllReceipts mocks base method.
+func (m *MockStorage) GetAllReceipts() (types.Receipts, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllReceipts")
+	ret0, _ := ret[0].(types.Receipts)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllReceipts indicates an expected call of GetAllReceipts.
+func (mr *MockStorageMockRecorder) GetAllReceipts() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllReceipts", reflect.TypeOf((*MockStorage)(nil).GetAllReceipts))
+}
+
 // GetReceiptById mocks base method.
 func (m *MockStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
 	m.ctrl.T.Helper()

@@ -20,21 +20,21 @@ func New(conn *sql.DB) *MysqlStorage {
 }
 
 // CreateReceipt creates a receipt in the database
-func (r *MysqlStorage) CreateReceipt(receipt *types.Receipt) (*types.Receipt, error) {
+func (s *MysqlStorage) CreateReceipt(receipt *types.Receipt) (*types.Receipt, error) {
 	receipt.CreatedOn = time.Now()
 
 	var itemsInsertErr error
-	receipt.Items, itemsInsertErr = r.insertItems(receipt.Items)
+	receipt.Items, itemsInsertErr = s.insertItems(receipt.Items)
 	if itemsInsertErr != nil {
 		return nil, itemsInsertErr
 	}
 
-	receipt, receiptInsertErr := r.insertReceipt(receipt)
+	receipt, receiptInsertErr := s.insertReceipt(receipt)
 	if receiptInsertErr != nil {
 		return nil, receiptInsertErr
 	}
 
-	receiptProductsErr := r.insertReceiptProducts(receipt)
+	receiptProductsErr := s.insertReceiptProducts(receipt)
 	if receiptProductsErr != nil {
 		return nil, receiptProductsErr
 	}
@@ -42,12 +42,12 @@ func (r *MysqlStorage) CreateReceipt(receipt *types.Receipt) (*types.Receipt, er
 	return receipt, nil
 }
 
-func (r *MysqlStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
-	receipt, err := r.findReceiptById(receiptId)
+func (s *MysqlStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
+	receipt, err := s.findReceiptById(receiptId)
 	if err != nil {
 		return nil, err
 	}
-	receiptItems, err := r.findReceiptItemsByReceiptId(receiptId)
+	receiptItems, err := s.findReceiptItemsByReceiptId(receiptId)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +56,42 @@ func (r *MysqlStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
 	return receipt, nil
 }
 
+func (s *MysqlStorage) GetAllReceipts() (types.Receipts, error) {
+	query := `SELECT r.id AS receipt_id, r.created_on, i.id AS product_id, i.product_name
+			  FROM receipts r
+			  INNER JOIN receipt_product rp
+			  ON rp.receipt_id = r.id
+			  INNER JOIN items i
+			  ON i.id = rp.product_id`
+
+	statement, err := s.Conn.Prepare(query)
+	if err != nil {
+		return nil, err
+	}
+	defer statement.Close()
+
+	rows, err := statement.Query()
+	if err != nil {
+		return nil, err
+	}
+
+	rwps := types.ReceiptsWithItemsFromDB{}
+	for rows.Next() {
+		rwp := types.ReceiptWithItemsFromDB{}
+		err := rows.Scan(&rwp.ReceiptId, &rwp.CreatedOn, &rwp.ProductId, &rwp.ProductName)
+		if err != nil {
+			return nil, err
+		}
+		rwps = append(rwps, rwp)
+	}
+
+	return rwps.ToReceipts(), nil
+}
+
 // insertItems inserts a list of items in the database
-func (r *MysqlStorage) insertItems(items types.Items) (types.Items, error) {
+func (s *MysqlStorage) insertItems(items types.Items) (types.Items, error) {
 	query := `INSERT INTO items (product_name) VALUES (?);`
-	statement, err := r.Conn.Prepare(query)
+	statement, err := s.Conn.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +113,9 @@ func (r *MysqlStorage) insertItems(items types.Items) (types.Items, error) {
 }
 
 // insertReceipt inserts a receipt in the database
-func (r *MysqlStorage) insertReceipt(receipt *types.Receipt) (*types.Receipt, error) {
+func (s *MysqlStorage) insertReceipt(receipt *types.Receipt) (*types.Receipt, error) {
 	query := `INSERT INTO receipts (created_on) VALUES (?);`
-	statement, err := r.Conn.Prepare(query)
+	statement, err := s.Conn.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +134,9 @@ func (r *MysqlStorage) insertReceipt(receipt *types.Receipt) (*types.Receipt, er
 }
 
 // insertReceiptProducts insert the relationship between receipt and items in the database
-func (r *MysqlStorage) insertReceiptProducts(receipt *types.Receipt) error {
+func (s *MysqlStorage) insertReceiptProducts(receipt *types.Receipt) error {
 	query := `INSERT INTO receipt_product (receipt_id, product_id) VALUES (?, ?);`
-	statement, err := r.Conn.Prepare(query)
+	statement, err := s.Conn.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -120,15 +152,15 @@ func (r *MysqlStorage) insertReceiptProducts(receipt *types.Receipt) error {
 	return nil
 }
 
-func (r *MysqlStorage) findReceiptById(id int) (*types.Receipt, error) {
+func (s *MysqlStorage) findReceiptById(id int) (*types.Receipt, error) {
 	query := `SELECT id, created_on FROM db.receipts WHERE id = ?`
-	statement, err := r.Conn.Prepare(query)
+	statement, err := s.Conn.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
 	defer statement.Close()
 
-	row := r.Conn.QueryRow(query, id)
+	row := s.Conn.QueryRow(query, id)
 	receipt := new(types.Receipt)
 	err = row.Scan(&receipt.Id, &receipt.CreatedOn)
 	if err != nil {
@@ -138,9 +170,9 @@ func (r *MysqlStorage) findReceiptById(id int) (*types.Receipt, error) {
 	return receipt, nil
 }
 
-func (r *MysqlStorage) findReceiptItemsByReceiptId(id int) (types.Items, error) {
+func (s *MysqlStorage) findReceiptItemsByReceiptId(id int) (types.Items, error) {
 	query := `SELECT i.id, i.product_name FROM db.items i, db.receipt_product r WHERE receipt_id = ? AND i.id = r.product_id;`
-	statement, err := r.Conn.Prepare(query)
+	statement, err := s.Conn.Prepare(query)
 	if err != nil {
 		return nil, err
 	}
