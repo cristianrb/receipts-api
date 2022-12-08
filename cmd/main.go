@@ -4,11 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"net/http"
 	"os"
-	"receipts-api/internal/handlers"
-	"receipts-api/internal/repositories"
-	"receipts-api/internal/services"
+	"receipts-api/internal/api"
+	"receipts-api/internal/storage"
 )
 
 const PORT = "8080"
@@ -28,24 +26,13 @@ var (
 )
 
 func main() {
-	receiptsRepository := repositories.New(openMysqlConnection())
-	receiptsService := services.New(receiptsRepository)
-	receiptsHandler := handlers.New(receiptsService)
-
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", PORT),
-		Handler: receiptsHandler.Routes(),
-	}
-
-	println("Started receipts application!")
-	err := srv.ListenAndServe()
-	if err != nil {
-		panic(err)
-	}
+	mysqlDB := storage.New(openMysqlConnection())
+	server := api.New(fmt.Sprintf(":%s", PORT), mysqlDB)
+	server.Run()
 }
 
 func openMysqlConnection() *sql.DB {
-	datasourceName := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8",
+	datasourceName := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&parseTime=true",
 		username, password, host, schema,
 	)
 	var err error
