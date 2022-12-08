@@ -44,12 +44,22 @@ func (rwis ReceiptsWithItemsFromDB) ToReceipts() Receipts {
 			receipt = Receipt{
 				Id:        rwp.ReceiptId,
 				CreatedOn: rwp.CreatedOn,
-				Items:     Items{},
+				Items: Items{
+					{
+						Id:          rwp.ProductId,
+						ProductName: rwp.ProductName,
+					},
+				},
 			}
 		} else {
-			receipt.Items = append(receipt.Items, &Item{ProductName: rwp.ProductName})
+			receipt.Items = append(receipt.Items, &Item{
+				Id:          rwp.ProductId,
+				ProductName: rwp.ProductName,
+			})
 		}
 	}
+
+	receipts = append(receipts, receipt)
 
 	return receipts
 }
