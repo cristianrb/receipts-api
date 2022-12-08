@@ -61,5 +61,5 @@ func (s *Server) GetReceiptById(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusAccepted, receipt)
+	utils.WriteJSON(w, http.StatusOK, receipt)
 }

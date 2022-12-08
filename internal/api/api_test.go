@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/golang/mock/gomock"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -40,4 +41,31 @@ func TestReceipts_AddReceipt(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusAccepted, rr.Code)
+}
+
+func TestReceipts_GetReceiptById(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "/receipts/1", nil)
+	vars := map[string]string{
+		"id": "1",
+	}
+	req = mux.SetURLVars(req, vars)
+	rr := httptest.NewRecorder()
+
+	ctrl := gomock.NewController(t)
+	storage := mockstorage.NewMockStorage(ctrl)
+	expectedReceipt := types.Receipt{
+		Id: 1,
+		Items: []*types.Item{
+			{Id: 1, ProductName: "Product name 1"},
+			{Id: 2, ProductName: "Product name 2"},
+		},
+	}
+	storage.EXPECT().GetReceiptById(1).Return(&expectedReceipt, nil)
+
+	rh := New(":5000", storage)
+	handler := http.HandlerFunc(rh.GetReceiptById)
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
 }
