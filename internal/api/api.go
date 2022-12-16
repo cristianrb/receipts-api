@@ -29,6 +29,7 @@ func (s *Server) Run() {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/receipts", s.AddReceipt).Methods(http.MethodPost)
 	mux.HandleFunc("/receipts/{id}", s.GetReceiptById).Methods(http.MethodGet)
+	mux.HandleFunc("/receipts/{id}", s.DeleteReceiptById).Methods(http.MethodDelete)
 	mux.HandleFunc("/receipts", s.GetAllReceipts).Methods(http.MethodGet)
 
 	logger.Info(fmt.Sprintf("Started server at port: %s", s.listenAddr))
@@ -84,4 +85,23 @@ func (s *Server) GetAllReceipts(w http.ResponseWriter, req *http.Request) {
 	}
 
 	utils.WriteJSON(w, http.StatusOK, receipt)
+}
+
+func (s *Server) DeleteReceiptById(w http.ResponseWriter, req *http.Request) {
+	receiptIdStr := mux.Vars(req)["id"]
+	receiptId, err := strconv.Atoi(receiptIdStr)
+	if err != nil {
+		logger.Error("Error when converting receipt id to int", err)
+		utils.ErrorJSON(w, err, http.StatusBadRequest)
+		return
+	}
+
+	err = s.mysqlStorage.DeleteReceiptById(receiptId)
+	if err != nil {
+		logger.Error("Error when calling GetReceiptById", err)
+		utils.ErrorJSON(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, nil)
 }

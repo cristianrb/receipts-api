@@ -27,6 +27,7 @@ const (
 			  INNER JOIN items i
 			  ON i.id = rp.product_id
 			  WHERE r.id = ?`
+	queryDeleteReceiptBuId = `DELETE FROM receipts WHERE id = ?`
 )
 
 type MysqlStorage struct {
@@ -118,6 +119,28 @@ func (s *MysqlStorage) GetAllReceipts() (types.Receipts, error) {
 	}
 
 	return rwps.ToReceipts(), nil
+}
+
+func (s *MysqlStorage) DeleteReceiptById(receiptId int) error {
+	statement, err := s.Conn.Prepare(queryDeleteReceiptBuId)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	res, err := statement.Exec(receiptId)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New(fmt.Sprintf("No receipt to delete with id: %d", receiptId))
+	}
+
+	return nil
 }
 
 // insertItems inserts a list of items in the database
