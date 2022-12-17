@@ -46,7 +46,7 @@ func (s *Server) Run() {
 
 // AddReceipt adds a receipt in the database
 func (s *Server) AddReceipt(writer http.ResponseWriter, req *http.Request) {
-	receipt := &types.Receipt{}
+	receipt := &types.ReceiptRequest{}
 	if err := utils.ReadJSON(writer, req, receipt); err != nil || receipt.Items == nil {
 		logger.Error("Error when reading json at AddReceipt handler", err)
 		if err == nil && receipt.Items == nil {

@@ -3,7 +3,7 @@ package storage
 import "receipts-api/pkg/types"
 
 type ReceiptStorage interface {
-	CreateReceipt(receipt *types.Receipt) (*types.Receipt, error)
+	CreateReceipt(receipt *types.ReceiptRequest) (*types.Receipt, error)
 	GetReceiptById(receiptId int) (*types.Receipt, error)
 	DeleteReceiptById(receiptId int) error
 	GetAllReceipts() (types.Receipts, error)

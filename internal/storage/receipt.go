@@ -30,26 +30,36 @@ const (
 )
 
 type ReceiptStorageImpl struct {
-	Conn *sql.DB
+	Conn         *sql.DB
+	ItemsStorage ItemStorage
 }
 
 // NewReceiptStorage creates an instance of ReceiptStorageImpl
-func NewReceiptStorage(conn *sql.DB) *ReceiptStorageImpl {
+func NewReceiptStorage(conn *sql.DB, itemsStorage ItemStorage) *ReceiptStorageImpl {
 	return &ReceiptStorageImpl{
-		Conn: conn,
+		Conn:         conn,
+		ItemsStorage: itemsStorage,
 	}
 }
 
 // CreateReceipt creates a receipt in the database
-func (s *ReceiptStorageImpl) CreateReceipt(receipt *types.Receipt) (*types.Receipt, error) {
-	receipt.CreatedOn = time.Now()
-
-	var itemsInsertErr error
-	receipt.Items, itemsInsertErr = s.insertItems(receipt.Items)
-	if itemsInsertErr != nil {
-		return nil, itemsInsertErr
+func (s *ReceiptStorageImpl) CreateReceipt(receiptReq *types.ReceiptRequest) (*types.Receipt, error) {
+	receipt := &types.Receipt{
+		CreatedOn: time.Now(),
+	}
+	itemsAsAny := []any{}
+	for _, item := range receiptReq.Items {
+		itemsAsAny = append(itemsAsAny, item)
+	}
+	items, err := s.ItemsStorage.GetItems(itemsAsAny)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) != len(receiptReq.Items) {
+		return nil, errors.New("some of the items does not exist")
 	}
 
+	receipt.Items = items
 	receipt, receiptInsertErr := s.insertReceipt(receipt)
 	if receiptInsertErr != nil {
 		return nil, receiptInsertErr

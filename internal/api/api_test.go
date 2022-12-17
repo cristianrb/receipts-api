@@ -14,18 +14,16 @@ import (
 )
 
 func TestReceipts_AddReceipt(t *testing.T) {
-	receipt := types.Receipt{
-		Items: []*types.Item{
-			{ProductName: "Product name 1"},
-			{ProductName: "Product name 2"},
-		},
+	receipt := types.ReceiptRequest{
+		Items: []int{1, 2},
 	}
 	body, _ := json.Marshal(receipt)
 	req, _ := http.NewRequest(http.MethodPost, "/receipts", strings.NewReader(string(body)))
 	rr := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)
-	storage := mockstorage.NewMockStorage(ctrl)
+	storage := mockstorage.NewMockReceiptStorage(ctrl)
+	itemStorage := mockstorage.NewMockItemStorage(ctrl)
 	expectedReceipt := types.Receipt{
 		Id: 1,
 		Items: []*types.Item{
@@ -35,7 +33,7 @@ func TestReceipts_AddReceipt(t *testing.T) {
 	}
 	storage.EXPECT().CreateReceipt(&receipt).Return(&expectedReceipt, nil)
 
-	rh := New(":5000", storage)
+	rh := New(":5000", storage, itemStorage)
 	handler := http.HandlerFunc(rh.AddReceipt)
 
 	handler.ServeHTTP(rr, req)
@@ -52,7 +50,8 @@ func TestReceipts_GetReceiptById(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)
-	storage := mockstorage.NewMockStorage(ctrl)
+	storage := mockstorage.NewMockReceiptStorage(ctrl)
+	itemStorage := mockstorage.NewMockItemStorage(ctrl)
 	expectedReceipt := types.Receipt{
 		Id: 1,
 		Items: []*types.Item{
@@ -62,7 +61,7 @@ func TestReceipts_GetReceiptById(t *testing.T) {
 	}
 	storage.EXPECT().GetReceiptById(1).Return(&expectedReceipt, nil)
 
-	rh := New(":5000", storage)
+	rh := New(":5000", storage, itemStorage)
 	handler := http.HandlerFunc(rh.GetReceiptById)
 
 	handler.ServeHTTP(rr, req)
@@ -75,7 +74,8 @@ func TestReceipts_GetAllReceipts(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	ctrl := gomock.NewController(t)
-	storage := mockstorage.NewMockStorage(ctrl)
+	storage := mockstorage.NewMockReceiptStorage(ctrl)
+	itemStorage := mockstorage.NewMockItemStorage(ctrl)
 	expectedReceipts := types.Receipts{
 		{
 			Id: 1,
@@ -93,7 +93,7 @@ func TestReceipts_GetAllReceipts(t *testing.T) {
 	}
 	storage.EXPECT().GetAllReceipts().Return(expectedReceipts, nil)
 
-	rh := New(":5000", storage)
+	rh := New(":5000", storage, itemStorage)
 	handler := http.HandlerFunc(rh.GetAllReceipts)
 
 	handler.ServeHTTP(rr, req)

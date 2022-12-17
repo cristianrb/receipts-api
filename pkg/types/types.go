@@ -9,6 +9,11 @@ type Item struct {
 
 type Items []*Item
 
+type ReceiptRequest struct {
+	Id    int64 `json:"id"`
+	Items []int `json:"items"`
+}
+
 type Receipt struct {
 	Id        int64     `json:"id"`
 	Items     Items     `json:"items"`
