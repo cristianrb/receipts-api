@@ -8,10 +8,9 @@ import (
 	"time"
 )
 
-var _ Storage = &MysqlStorage{}
+var _ ReceiptStorage = &ReceiptStorageImpl{}
 
 const (
-	queryInsertItem           = `INSERT INTO items (product_name) VALUES (?)`
 	queryInsertReceipt        = `INSERT INTO receipts (created_on) VALUES (?);`
 	queryInsertReceiptProduct = `INSERT INTO receipt_product (receipt_id, product_id) VALUES (?, ?);`
 	queryFindAllReceipts      = `SELECT r.id AS receipt_id, r.created_on, i.id AS product_id, i.product_name
@@ -30,19 +29,19 @@ const (
 	queryDeleteReceiptBuId = `DELETE FROM receipts WHERE id = ?`
 )
 
-type MysqlStorage struct {
+type ReceiptStorageImpl struct {
 	Conn *sql.DB
 }
 
-// New creates an instance of MysqlStorage
-func New(conn *sql.DB) *MysqlStorage {
-	return &MysqlStorage{
+// NewReceiptStorage creates an instance of ReceiptStorageImpl
+func NewReceiptStorage(conn *sql.DB) *ReceiptStorageImpl {
+	return &ReceiptStorageImpl{
 		Conn: conn,
 	}
 }
 
 // CreateReceipt creates a receipt in the database
-func (s *MysqlStorage) CreateReceipt(receipt *types.Receipt) (*types.Receipt, error) {
+func (s *ReceiptStorageImpl) CreateReceipt(receipt *types.Receipt) (*types.Receipt, error) {
 	receipt.CreatedOn = time.Now()
 
 	var itemsInsertErr error
@@ -64,7 +63,7 @@ func (s *MysqlStorage) CreateReceipt(receipt *types.Receipt) (*types.Receipt, er
 	return receipt, nil
 }
 
-func (s *MysqlStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
+func (s *ReceiptStorageImpl) GetReceiptById(receiptId int) (*types.Receipt, error) {
 	statement, err := s.Conn.Prepare(queryFindReceiptById)
 	if err != nil {
 		return nil, err
@@ -96,7 +95,7 @@ func (s *MysqlStorage) GetReceiptById(receiptId int) (*types.Receipt, error) {
 	return &receiptsList[0], nil
 }
 
-func (s *MysqlStorage) GetAllReceipts() (types.Receipts, error) {
+func (s *ReceiptStorageImpl) GetAllReceipts() (types.Receipts, error) {
 	statement, err := s.Conn.Prepare(queryFindAllReceipts)
 	if err != nil {
 		return nil, err
@@ -121,7 +120,7 @@ func (s *MysqlStorage) GetAllReceipts() (types.Receipts, error) {
 	return rwps.ToReceipts(), nil
 }
 
-func (s *MysqlStorage) DeleteReceiptById(receiptId int) error {
+func (s *ReceiptStorageImpl) DeleteReceiptById(receiptId int) error {
 	statement, err := s.Conn.Prepare(queryDeleteReceiptBuId)
 	if err != nil {
 		return err
@@ -144,7 +143,7 @@ func (s *MysqlStorage) DeleteReceiptById(receiptId int) error {
 }
 
 // insertItems inserts a list of items in the database
-func (s *MysqlStorage) insertItems(items types.Items) (types.Items, error) {
+func (s *ReceiptStorageImpl) insertItems(items types.Items) (types.Items, error) {
 	statement, err := s.Conn.Prepare(queryInsertItem)
 	if err != nil {
 		return nil, err
@@ -167,7 +166,7 @@ func (s *MysqlStorage) insertItems(items types.Items) (types.Items, error) {
 }
 
 // insertReceipt inserts a receipt in the database
-func (s *MysqlStorage) insertReceipt(receipt *types.Receipt) (*types.Receipt, error) {
+func (s *ReceiptStorageImpl) insertReceipt(receipt *types.Receipt) (*types.Receipt, error) {
 	statement, err := s.Conn.Prepare(queryInsertReceipt)
 	if err != nil {
 		return nil, err
@@ -187,7 +186,7 @@ func (s *MysqlStorage) insertReceipt(receipt *types.Receipt) (*types.Receipt, er
 }
 
 // insertReceiptProducts insert the relationship between receipt and items in the database
-func (s *MysqlStorage) insertReceiptProducts(receipt *types.Receipt) error {
+func (s *ReceiptStorageImpl) insertReceiptProducts(receipt *types.Receipt) error {
 	statement, err := s.Conn.Prepare(queryInsertReceiptProduct)
 	if err != nil {
 		return err

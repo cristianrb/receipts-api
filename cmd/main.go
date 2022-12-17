@@ -26,8 +26,10 @@ var (
 )
 
 func main() {
-	mysqlDB := storage.New(openMysqlConnection())
-	server := api.New(fmt.Sprintf(":%s", PORT), mysqlDB)
+	conn := openMysqlConnection()
+	receiptStorage := storage.NewReceiptStorage(conn)
+	itemStorage := storage.NewItemStorage(conn)
+	server := api.New(fmt.Sprintf(":%s", PORT), receiptStorage, itemStorage)
 	server.Run()
 }
 

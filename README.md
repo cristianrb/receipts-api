@@ -2,7 +2,7 @@
 The objective is to build a simple CRUD API to process Receipt (payment) resources. You can use either the REST API or any RPC (gRPC and so on) model. How the data is stored is up to you.
 
 ## Api Endpoints:
-- Create a new item
+- Create a new item ✓
 - Get list of items by ids
 - Update item
 - Delete item
