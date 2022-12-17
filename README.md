@@ -3,9 +3,10 @@ The objective is to build a simple CRUD API to process Receipt (payment) resourc
 
 ## Api Endpoints:
 - Create a new item ✓
-- Get list of items by ids
-- Update item
-- Delete item
+- Get list of items by ids ✓
+- Get all items ✓
+- Update item ✓
+- Delete item ✓
 - Create a new Receipt ✓
 - Update a Receipt
 - Delete the Receipt by its id ✓

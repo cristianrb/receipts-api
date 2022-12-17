@@ -136,7 +136,12 @@ func (s *Server) AddItem(writer http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) GetItems(writer http.ResponseWriter, req *http.Request) {
-	idsStr := strings.Split(req.URL.Query().Get("ids"), ",")
+	idsReq := req.URL.Query().Get("ids")
+	if idsReq == "" {
+		s.GetAllItems(writer, req)
+		return
+	}
+	idsStr := strings.Split(idsReq, ",")
 	var ids []any
 	for _, idStr := range idsStr {
 		id, err := strconv.Atoi(idStr)
@@ -151,6 +156,17 @@ func (s *Server) GetItems(writer http.ResponseWriter, req *http.Request) {
 	items, err := s.itemStorage.GetItems(ids)
 	if err != nil {
 		logger.Error("Error when calling GetItems", err)
+		utils.ErrorJSON(writer, err, http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, items)
+}
+
+func (s *Server) GetAllItems(writer http.ResponseWriter, req *http.Request) {
+	items, err := s.itemStorage.GetAllItems()
+	if err != nil {
+		logger.Error("Error when calling GetAllItems", err)
 		utils.ErrorJSON(writer, err, http.StatusInternalServerError)
 		return
 	}

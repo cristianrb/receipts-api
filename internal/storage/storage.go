@@ -12,6 +12,7 @@ type ReceiptStorage interface {
 type ItemStorage interface {
 	CreateItem(item *types.Item) (*types.Item, error)
 	GetItems(ids []any) (types.Items, error)
+	GetAllItems() (types.Items, error)
 	UpdateItem(item *types.Item) (*types.Item, error)
 	DeleteItemById(id int64) error
 }

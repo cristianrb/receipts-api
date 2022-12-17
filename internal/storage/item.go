@@ -14,6 +14,7 @@ var _ ItemStorage = &ItemStorageImpl{}
 const (
 	queryInsertItem = `INSERT INTO items (product_name) VALUES (?)`
 	queryItemById   = `SELECT * from items where id = ?`
+	queryAllItems   = `SELECT * from items`
 	queryUpdateItem = `UPDATE items SET product_name = ? WHERE id = ?`
 	queryDeleteItem = `DELETE FROM items WHERE id = ?`
 )
@@ -53,6 +54,26 @@ func (s *ItemStorageImpl) GetItems(ids []any) (types.Items, error) {
 	query := `SELECT * from items where id in (?` + strings.Repeat(",?", len(ids)-1) + `)`
 
 	rows, err := s.Conn.Query(query, ids...)
+	if err != nil {
+		return nil, err
+	}
+
+	items := types.Items{}
+	for rows.Next() {
+		item := types.Item{}
+		err := rows.Scan(&item.Id, &item.ProductName)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, &item)
+	}
+
+	return items, nil
+}
+
+func (s *ItemStorageImpl) GetAllItems() (types.Items, error) {
+	rows, err := s.Conn.Query(queryAllItems)
 	if err != nil {
 		return nil, err
 	}
