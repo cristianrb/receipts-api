@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -26,7 +27,8 @@ const (
 			  INNER JOIN items i
 			  ON i.id = rp.product_id
 			  WHERE r.id = ?`
-	queryDeleteReceiptBuId = `DELETE FROM receipts WHERE id = ?`
+	queryDeleteReceiptById     = `DELETE FROM receipts WHERE id = ?`
+	queryDeleteReceiptProducts = `DELETE FROM receipt_product WHERE receipt_id = ?`
 )
 
 type ReceiptStorageImpl struct {
@@ -65,7 +67,7 @@ func (s *ReceiptStorageImpl) CreateReceipt(receiptReq *types.ReceiptRequest) (*t
 		return nil, receiptInsertErr
 	}
 
-	receiptProductsErr := s.insertReceiptProducts(receipt)
+	receiptProductsErr := s.insertReceiptProducts(receipt, nil)
 	if receiptProductsErr != nil {
 		return nil, receiptProductsErr
 	}
@@ -131,7 +133,7 @@ func (s *ReceiptStorageImpl) GetAllReceipts() (types.Receipts, error) {
 }
 
 func (s *ReceiptStorageImpl) DeleteReceiptById(receiptId int) error {
-	statement, err := s.Conn.Prepare(queryDeleteReceiptBuId)
+	statement, err := s.Conn.Prepare(queryDeleteReceiptById)
 	if err != nil {
 		return err
 	}
@@ -152,27 +154,51 @@ func (s *ReceiptStorageImpl) DeleteReceiptById(receiptId int) error {
 	return nil
 }
 
-// insertItems inserts a list of items in the database
-func (s *ReceiptStorageImpl) insertItems(items types.Items) (types.Items, error) {
-	statement, err := s.Conn.Prepare(queryInsertItem)
+func (s *ReceiptStorageImpl) UpdateReceipt(receiptReq *types.ReceiptRequest) (*types.Receipt, error) {
+	tx, err := s.Conn.BeginTx(context.Background(), nil)
 	if err != nil {
 		return nil, err
 	}
-	defer statement.Close()
+	// Defer a rollback in case anything fails.
+	defer tx.Rollback()
 
-	for _, item := range items {
-		insertResult, err := statement.Exec(item.ProductName)
-		if err != nil {
-			return nil, err
-		}
-
-		item.Id, err = insertResult.LastInsertId()
-		if err != nil {
-			return nil, err
-		}
+	receiptDB, err := s.GetReceiptById(int(receiptReq.Id))
+	if err != nil {
+		return nil, err
 	}
 
-	return items, nil
+	_, err = tx.Exec(queryDeleteReceiptProducts, receiptReq.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	itemsAsAny := []any{}
+	for _, item := range receiptReq.Items {
+		itemsAsAny = append(itemsAsAny, item)
+	}
+	items, err := s.ItemsStorage.GetItems(itemsAsAny)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) != len(receiptReq.Items) {
+		return nil, errors.New("some of the items do not exist")
+	}
+
+	receipt := &types.Receipt{
+		Id:        receiptReq.Id,
+		Items:     items,
+		CreatedOn: receiptDB.CreatedOn,
+	}
+	err = s.insertReceiptProducts(receipt, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
 }
 
 // insertReceipt inserts a receipt in the database
@@ -196,15 +222,23 @@ func (s *ReceiptStorageImpl) insertReceipt(receipt *types.Receipt) (*types.Recei
 }
 
 // insertReceiptProducts insert the relationship between receipt and items in the database
-func (s *ReceiptStorageImpl) insertReceiptProducts(receipt *types.Receipt) error {
-	statement, err := s.Conn.Prepare(queryInsertReceiptProduct)
+func (s *ReceiptStorageImpl) insertReceiptProducts(receipt *types.Receipt, tx *sql.Tx) error {
+	if tx == nil {
+		tx, err := s.Conn.BeginTx(context.Background(), nil)
+		if err != nil {
+			return err
+		}
+		// Defer a rollback in case anything fails.
+		defer tx.Rollback()
+	}
+	statement, err := tx.Prepare(queryInsertReceiptProduct)
 	if err != nil {
 		return err
 	}
 	defer statement.Close()
 
 	for _, item := range receipt.Items {
-		_, err := statement.Exec(receipt.Id, item.Id)
+		_, err := statement.Query(receipt.Id, item.Id)
 		if err != nil {
 			return err
 		}

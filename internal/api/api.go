@@ -34,6 +34,7 @@ func (s *Server) Run() {
 	mux.HandleFunc("/receipts/{id}", s.GetReceiptById).Methods(http.MethodGet)
 	mux.HandleFunc("/receipts/{id}", s.DeleteReceiptById).Methods(http.MethodDelete)
 	mux.HandleFunc("/receipts", s.GetAllReceipts).Methods(http.MethodGet)
+	mux.HandleFunc("/receipts/{id}", s.UpdateReceipt).Methods(http.MethodPut)
 
 	mux.HandleFunc("/items", s.AddItem).Methods(http.MethodPost)
 	mux.HandleFunc("/items", s.GetItems).Methods(http.MethodGet)
@@ -219,4 +220,34 @@ func (s *Server) DeleteItem(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	utils.WriteJSON(writer, http.StatusOK, nil)
+}
+
+func (s *Server) UpdateReceipt(writer http.ResponseWriter, request *http.Request) {
+	receiptIdStr := mux.Vars(request)["id"]
+	receiptId, err := strconv.Atoi(receiptIdStr)
+	if err != nil {
+		logger.Error("Error when converting receipt id to int", err)
+		utils.ErrorJSON(writer, err, http.StatusBadRequest)
+		return
+	}
+
+	receiptReq := &types.ReceiptRequest{
+		Id: int64(receiptId),
+	}
+	if err := utils.ReadJSON(writer, request, receiptReq); err != nil || receiptReq.Items == nil {
+		logger.Error("Error when reading json at UpdateReceipt handler", err)
+		if err == nil && receiptReq.Items == nil {
+			utils.ErrorJSON(writer, errors.New("invalid json"), http.StatusBadRequest)
+		}
+		return
+	}
+
+	receipt, err := s.receiptStorage.UpdateReceipt(receiptReq)
+	if err != nil {
+		logger.Error("Error when calling UpdateReceipt", err)
+		utils.ErrorJSON(writer, err, http.StatusInternalServerError)
+		return
+	}
+
+	utils.WriteJSON(writer, http.StatusOK, receipt)
 }

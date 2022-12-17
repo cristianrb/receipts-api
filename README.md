@@ -8,7 +8,7 @@ The objective is to build a simple CRUD API to process Receipt (payment) resourc
 - Update item ✓
 - Delete item ✓
 - Create a new Receipt ✓
-- Update a Receipt
+- Update a Receipt ✓
 - Delete the Receipt by its id ✓
 - Get the Receipt by its id ✓
 - Get all Receipts ✓
