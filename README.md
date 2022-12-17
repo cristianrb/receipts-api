@@ -12,8 +12,8 @@ The objective is to build a simple CRUD API to process Receipt (payment) resourc
 - Delete the Receipt by its id ✓
 - Get the Receipt by its id ✓
 - Get all Receipts ✓
-- Get filtered Receipts by creation date range
-- Get filtered Receipts by product name - find all Receipts containing an item with the name containing text
+- Get filtered Receipts by creation date range ✓
+- Get filtered Receipts by product name - find all Receipts containing an item with the name containing text ✓
 
 
 ## Entities

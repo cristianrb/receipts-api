@@ -11,6 +11,7 @@ import (
 	"receipts-api/pkg/types"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Server struct {
@@ -86,14 +87,50 @@ func (s *Server) GetReceiptById(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) GetAllReceipts(w http.ResponseWriter, req *http.Request) {
-	receipt, err := s.receiptStorage.GetAllReceipts()
-	if err != nil {
-		logger.Error("Error when calling GetAllReceipts", err)
-		utils.ErrorJSON(w, err, http.StatusInternalServerError)
-		return
+	receipts := types.Receipts{}
+	var err error
+
+	createdOn := req.URL.Query().Get("created_on")
+	productNames := req.URL.Query().Get("product_names")
+
+	if createdOn != "" {
+		dates := strings.Split(createdOn, ",")
+		d1, err := time.Parse("2006-01-02", dates[0])
+		if err != nil {
+			utils.ErrorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
+		d2, err := time.Parse("2006-01-02", dates[1])
+		if err != nil {
+			utils.ErrorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
+		receipts, err = s.receiptStorage.GetReceiptsBetweenDates(d1, d2)
+		if err != nil {
+			utils.ErrorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
+	} else if productNames != "" {
+		productNamesSplit := strings.Split(productNames, ",")
+		var productNamesArr []any
+		for _, productName := range productNamesSplit {
+			productNamesArr = append(productNamesArr, productName)
+		}
+		receipts, err = s.receiptStorage.GetReceiptsWithProductNames(productNamesArr)
+		if err != nil {
+			utils.ErrorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		receipts, err = s.receiptStorage.GetAllReceipts()
+		if err != nil {
+			logger.Error("Error when calling GetAllReceipts", err)
+			utils.ErrorJSON(w, err, http.StatusInternalServerError)
+			return
+		}
 	}
 
-	utils.WriteJSON(w, http.StatusOK, receipt)
+	utils.WriteJSON(w, http.StatusOK, receipts)
 }
 
 func (s *Server) DeleteReceiptById(w http.ResponseWriter, req *http.Request) {

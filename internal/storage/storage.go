@@ -1,6 +1,9 @@
 package storage
 
-import "receipts-api/pkg/types"
+import (
+	"receipts-api/pkg/types"
+	"time"
+)
 
 type ReceiptStorage interface {
 	CreateReceipt(receipt *types.ReceiptRequest) (*types.Receipt, error)
@@ -8,6 +11,8 @@ type ReceiptStorage interface {
 	GetReceiptById(receiptId int) (*types.Receipt, error)
 	DeleteReceiptById(receiptId int) error
 	GetAllReceipts() (types.Receipts, error)
+	GetReceiptsBetweenDates(d1, d2 time.Time) (types.Receipts, error)
+	GetReceiptsWithProductNames(productNames []any) (types.Receipts, error)
 }
 
 type ItemStorage interface {

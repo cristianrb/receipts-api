@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"receipts-api/pkg/types"
+	"strings"
 	"time"
 )
 
@@ -27,8 +28,22 @@ const (
 			  INNER JOIN items i
 			  ON i.id = rp.product_id
 			  WHERE r.id = ?`
-	queryDeleteReceiptById     = `DELETE FROM receipts WHERE id = ?`
-	queryDeleteReceiptProducts = `DELETE FROM receipt_product WHERE receipt_id = ?`
+	queryDeleteReceiptById        = `DELETE FROM receipts WHERE id = ?`
+	queryDeleteReceiptProducts    = `DELETE FROM receipt_product WHERE receipt_id = ?`
+	queryFindReceiptsBetweenDates = `SELECT r.id AS receipt_id, r.created_on, i.id AS product_id, i.product_name
+			  FROM receipts r
+			  INNER JOIN receipt_product rp
+			  ON rp.receipt_id = r.id
+			  INNER JOIN items i
+			  ON i.id = rp.product_id
+			  WHERE r.created_on BETWEEN ? AND ?`
+	queryFindReceiptsWithProducts = `SELECT r.id AS receipt_id, r.created_on, i.id AS product_id, i.product_name
+			  FROM receipts r
+			  INNER JOIN receipt_product rp
+			  ON rp.receipt_id = r.id
+			  INNER JOIN items i
+			  ON i.id = rp.product_id
+			  WHERE i.product_name LIKE ?`
 )
 
 type ReceiptStorageImpl struct {
@@ -201,6 +216,57 @@ func (s *ReceiptStorageImpl) UpdateReceipt(receiptReq *types.ReceiptRequest) (*t
 	return receipt, nil
 }
 
+func (s *ReceiptStorageImpl) GetReceiptsBetweenDates(d1, d2 time.Time) (types.Receipts, error) {
+	statement, err := s.Conn.Prepare(queryFindReceiptsBetweenDates)
+	if err != nil {
+		return nil, err
+	}
+	defer statement.Close()
+
+	rows, err := statement.Query(d1, d2)
+	if err != nil {
+		return nil, err
+	}
+
+	rwps := types.ReceiptsWithItemsFromDB{}
+	for rows.Next() {
+		rwp := types.ReceiptWithItemsFromDB{}
+		err := rows.Scan(&rwp.ReceiptId, &rwp.CreatedOn, &rwp.ProductId, &rwp.ProductName)
+		if err != nil {
+			return nil, err
+		}
+		rwps = append(rwps, rwp)
+	}
+
+	return rwps.ToReceipts(), nil
+}
+
+func (s *ReceiptStorageImpl) GetReceiptsWithProductNames(productNames []any) (types.Receipts, error) {
+	namesWithWildcards := []any{}
+	for _, productName := range productNames {
+		productName = fmt.Sprintf("%%%s%%", productName)
+		namesWithWildcards = append(namesWithWildcards, productName)
+	}
+	query := queryFindReceiptsWithProducts + strings.Repeat(" OR i.product_name LIKE ?", len(namesWithWildcards)-1)
+
+	rows, err := s.Conn.Query(query, namesWithWildcards...)
+	if err != nil {
+		return nil, err
+	}
+
+	rwps := types.ReceiptsWithItemsFromDB{}
+	for rows.Next() {
+		rwp := types.ReceiptWithItemsFromDB{}
+		err := rows.Scan(&rwp.ReceiptId, &rwp.CreatedOn, &rwp.ProductId, &rwp.ProductName)
+		if err != nil {
+			return nil, err
+		}
+		rwps = append(rwps, rwp)
+	}
+
+	return rwps.ToReceipts(), nil
+}
+
 // insertReceipt inserts a receipt in the database
 func (s *ReceiptStorageImpl) insertReceipt(receipt *types.Receipt) (*types.Receipt, error) {
 	statement, err := s.Conn.Prepare(queryInsertReceipt)
@@ -224,10 +290,11 @@ func (s *ReceiptStorageImpl) insertReceipt(receipt *types.Receipt) (*types.Recei
 // insertReceiptProducts insert the relationship between receipt and items in the database
 func (s *ReceiptStorageImpl) insertReceiptProducts(receipt *types.Receipt, tx *sql.Tx) error {
 	if tx == nil {
-		tx, err := s.Conn.BeginTx(context.Background(), nil)
+		newTx, err := s.Conn.BeginTx(context.Background(), nil)
 		if err != nil {
 			return err
 		}
+		tx = newTx
 		// Defer a rollback in case anything fails.
 		defer tx.Rollback()
 	}
@@ -242,6 +309,10 @@ func (s *ReceiptStorageImpl) insertReceiptProducts(receipt *types.Receipt, tx *s
 		if err != nil {
 			return err
 		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return err
 	}
 
 	return nil
